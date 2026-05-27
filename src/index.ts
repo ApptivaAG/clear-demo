@@ -3,23 +3,7 @@
 import { MongoClient } from 'mongodb';
 import prompts from 'prompts';
 
-const AZURE_SEARCH_SERVICES = [
-  {
-    name: 'bubble-chat-ai-search-s1',
-    sku: 'standard',
-    url: 'https://portal.azure.com/#view/Microsoft_Azure_Search/Index.ReactView/id/%2Fsubscriptions%2F113f017c-5068-4425-97b6-7cb15ccad2e6%2FresourceGroups%2Fbubble-chat%2Fproviders%2FMicrosoft.Search%2FsearchServices%2Fbubble-chat-ai-search-s1%23bubble-demo-PROJECT_ID/location/Switzerland%20North/sku/standard',
-  },
-  {
-    name: 'bubble-chat-ai-search-s1-2',
-    sku: 'standard',
-    url: 'https://portal.azure.com/#view/Microsoft_Azure_Search/Index.ReactView/id/%2Fsubscriptions%2F113f017c-5068-4425-97b6-7cb15ccad2e6%2FresourceGroups%2Fbubble-chat%2Fproviders%2FMicrosoft.Search%2FsearchServices%2Fbubble-chat-ai-search-s1-2%23bubble-demo-PROJECT_ID/location/Switzerland%20North/sku/standard',
-  },
-  {
-    name: 'bubble-chat-ai-search-basic-demo',
-    sku: 'basic',
-    url: 'https://portal.azure.com/#view/Microsoft_Azure_Search/Index.ReactView/id/%2Fsubscriptions%2F113f017c-5068-4425-97b6-7cb15ccad2e6%2FresourceGroups%2Fbubble-chat%2Fproviders%2FMicrosoft.Search%2FsearchServices%2Fbubble-chat-ai-search-basic-demo%23bubble-demo-PROJECT_ID/location/Switzerland%20North/sku/basic',
-  },
-];
+
 
 async function main() {
   console.log('🧹 Demo Chatbot Cleanup Tool\n');
@@ -328,30 +312,27 @@ async function deleteAzureSearchIndex(credentials: AzureSearchCredentials): Prom
   }
 }
 
-function generateAzureSearchUrls(projectId: string) {
-  return AZURE_SEARCH_SERVICES.map((service) => ({
-    ...service,
-    url: service.url.replace('PROJECT_ID', projectId),
-  }));
-}
-
-function displayManualAzureSearchLinks(projectId: string) {
+async function displayManualAzureSearchLinks(projectId: string) {
   console.log(`\n   To complete the cleanup, delete the Azure AI Search index:\n`);
   console.log(`   Index name: bubble-demo-${projectId}\n`);
-  console.log('   The index could be in one of these search services:');
-  console.log('   (Click the correct link - Ctrl+Click or Cmd+Click)\n');
-
-  const searchUrls = generateAzureSearchUrls(projectId);
-  searchUrls.forEach((service, index) => {
-    console.log(`   ${index + 1}. ${service.name} (${service.sku}):`);
-    console.log(`      ${service.url}\n`);
-  });
+  
+  // Try to get endpoint from kubectl
+  const credentials = await getAzureSearchCredentialsFromKubernetes(projectId);
+  
+  if (credentials) {
+    console.log(`   Azure Search Service Endpoint: ${credentials.endpoint}`);
+    console.log(`   Index to delete: ${credentials.indexName}\n`);
+    console.log(`   Direct index URL: ${credentials.endpoint}/indexes/${credentials.indexName}\n`);
+  } else {
+    console.log('   ⚠️  Could not retrieve Azure Search endpoint from Kubernetes');
+    console.log(`   Please check the namespace: bubble-demo-${projectId}-chatbot\n`);
+  }
 
   console.log('   Instructions:');
-  console.log('   1. Click one of the links above to open Azure Portal');
-  console.log('   2. If the index exists, click the "Delete" button');
-  console.log('   3. If not found, try the next link');
-  console.log('   4. Confirm the deletion when found\n');
+  console.log('   1. Open Azure Portal and navigate to your Azure AI Search service');
+  console.log('   2. Find the index listed above');
+  console.log('   3. Click the "Delete" button');
+  console.log('   4. Confirm the deletion\n');
 }
 
 async function performAzureSearchCleanup(projectId: string) {
