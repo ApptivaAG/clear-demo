@@ -95,10 +95,18 @@ async function getMongoDBUrlFromKubernetes(projectId: string): Promise<string | 
 
   try {
     const { execSync } = await import('child_process');
-    const base64Value = execSync(
-      `kubectl get secret env-vars -n ${namespace} -o jsonpath='{.data.CHATBOT_MONGO_DB_URL}'`,
+    // Try MONGO_DB_URL first, then fall back to CHATBOT_MONGO_DB_URL
+    let base64Value = execSync(
+      `kubectl get secret env-vars -n ${namespace} -o jsonpath='{.data.MONGO_DB_URL}'`,
       { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
     ).trim();
+
+    if (!base64Value) {
+      base64Value = execSync(
+        `kubectl get secret env-vars -n ${namespace} -o jsonpath='{.data.CHATBOT_MONGO_DB_URL}'`,
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+      ).trim();
+    }
 
     if (!base64Value) {
       return null;
